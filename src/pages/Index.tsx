@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Icon from '@/components/ui/icon';
 
 interface Match {
@@ -13,6 +14,7 @@ interface Match {
   score2: number;
   date: string;
   status: 'finished' | 'upcoming';
+  tournament: string;
 }
 
 interface Prediction {
@@ -26,6 +28,7 @@ interface Prediction {
   coefficientDraw: number;
   coefficient2: number;
   date: string;
+  tournament: string;
 }
 
 interface TeamStats {
@@ -40,12 +43,14 @@ interface TeamStats {
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('predictions');
+  const [selectedTournament, setSelectedTournament] = useState<string>('all');
+  const [selectedDateRange, setSelectedDateRange] = useState<string>('all');
 
   const matches: Match[] = [
-    { id: 1, team1: 'Манчестер Юнайтед', team2: 'Ливерпуль', score1: 2, score2: 1, date: '14.01.2026', status: 'finished' },
-    { id: 2, team1: 'Челси', team2: 'Арсенал', score1: 1, score2: 1, date: '13.01.2026', status: 'finished' },
-    { id: 3, team1: 'Манчестер Сити', team2: 'Тоттенхэм', score1: 3, score2: 0, date: '12.01.2026', status: 'finished' },
-    { id: 4, team1: 'Ньюкасл', team2: 'Астон Вилла', score1: 0, score2: 0, date: '18.01.2026', status: 'upcoming' },
+    { id: 1, team1: 'Манчестер Юнайтед', team2: 'Ливерпуль', score1: 2, score2: 1, date: '14.01.2026', status: 'finished', tournament: 'АПЛ' },
+    { id: 2, team1: 'Челси', team2: 'Арсенал', score1: 1, score2: 1, date: '13.01.2026', status: 'finished', tournament: 'АПЛ' },
+    { id: 3, team1: 'Манчестер Сити', team2: 'Тоттенхэм', score1: 3, score2: 0, date: '12.01.2026', status: 'finished', tournament: 'АПЛ' },
+    { id: 4, team1: 'Ньюкасл', team2: 'Астон Вилла', score1: 0, score2: 0, date: '18.01.2026', status: 'upcoming', tournament: 'АПЛ' },
   ];
 
   const predictions: Prediction[] = [
@@ -60,6 +65,7 @@ const Index = () => {
       coefficientDraw: 4.35,
       coefficient2: 6.67,
       date: '20.01.2026',
+      tournament: 'Бундеслига',
     },
     {
       id: 2,
@@ -72,6 +78,7 @@ const Index = () => {
       coefficientDraw: 4.00,
       coefficient2: 5.88,
       date: '21.01.2026',
+      tournament: 'Лига 1',
     },
     {
       id: 3,
@@ -84,6 +91,7 @@ const Index = () => {
       coefficientDraw: 3.57,
       coefficient2: 4.17,
       date: '22.01.2026',
+      tournament: 'Ла Лига',
     },
   ];
 
@@ -104,6 +112,37 @@ const Index = () => {
     if (prob >= 50) return 'text-green-600 font-semibold';
     if (prob >= 30) return 'text-yellow-600 font-medium';
     return 'text-gray-500';
+  };
+
+  const tournaments = ['all', 'АПЛ', 'Бундеслига', 'Лига 1', 'Ла Лига'];
+
+  const filterByDate = (dateStr: string) => {
+    if (selectedDateRange === 'all') return true;
+    const date = new Date(dateStr.split('.').reverse().join('-'));
+    const today = new Date();
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const weekAhead = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+    
+    if (selectedDateRange === 'week') {
+      return date >= weekAgo && date <= today;
+    }
+    if (selectedDateRange === 'upcoming') {
+      return date >= today && date <= weekAhead;
+    }
+    return true;
+  };
+
+  const filteredPredictions = predictions.filter(
+    (p) => (selectedTournament === 'all' || p.tournament === selectedTournament) && filterByDate(p.date)
+  );
+
+  const filteredMatches = matches.filter(
+    (m) => (selectedTournament === 'all' || m.tournament === selectedTournament) && filterByDate(m.date)
+  );
+
+  const handleResetFilters = () => {
+    setSelectedTournament('all');
+    setSelectedDateRange('all');
   };
 
   return (
@@ -135,17 +174,59 @@ const Index = () => {
           </TabsList>
 
           <TabsContent value="predictions" className="space-y-4">
+            <div className="flex flex-wrap gap-3 mb-6 items-center">
+              <Select value={selectedTournament} onValueChange={setSelectedTournament}>
+                <SelectTrigger className="w-[200px]">
+                  <Icon name="Trophy" size={16} className="mr-2" />
+                  <SelectValue placeholder="Турнир" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tournaments.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t === 'all' ? 'Все турниры' : t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedDateRange} onValueChange={setSelectedDateRange}>
+                <SelectTrigger className="w-[200px]">
+                  <Icon name="Calendar" size={16} className="mr-2" />
+                  <SelectValue placeholder="Период" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все даты</SelectItem>
+                  <SelectItem value="week">Последние 7 дней</SelectItem>
+                  <SelectItem value="upcoming">Следующие 7 дней</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {(selectedTournament !== 'all' || selectedDateRange !== 'all') && (
+                <Button variant="outline" size="sm" onClick={handleResetFilters}>
+                  <Icon name="X" size={16} className="mr-1" />
+                  Сбросить
+                </Button>
+              )}
+
+              <div className="ml-auto text-sm text-muted-foreground">
+                Найдено: {filteredPredictions.length}
+              </div>
+            </div>
+
             <div className="grid gap-4">
-              {predictions.map((pred) => (
+              {filteredPredictions.map((pred) => (
                 <Card key={pred.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader className="pb-3">
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center mb-2">
                       <CardTitle className="text-lg font-medium">{pred.team1} vs {pred.team2}</CardTitle>
                       <Badge variant="outline" className="text-xs">
                         <Icon name="Calendar" size={12} className="mr-1" />
                         {pred.date}
                       </Badge>
                     </div>
+                    <Badge variant="secondary" className="text-xs w-fit">
+                      {pred.tournament}
+                    </Badge>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-3 gap-4 mb-4">
@@ -193,8 +274,47 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="history" className="space-y-4">
+            <div className="flex flex-wrap gap-3 mb-6 items-center">
+              <Select value={selectedTournament} onValueChange={setSelectedTournament}>
+                <SelectTrigger className="w-[200px]">
+                  <Icon name="Trophy" size={16} className="mr-2" />
+                  <SelectValue placeholder="Турнир" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tournaments.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t === 'all' ? 'Все турниры' : t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select value={selectedDateRange} onValueChange={setSelectedDateRange}>
+                <SelectTrigger className="w-[200px]">
+                  <Icon name="Calendar" size={16} className="mr-2" />
+                  <SelectValue placeholder="Период" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все даты</SelectItem>
+                  <SelectItem value="week">Последние 7 дней</SelectItem>
+                  <SelectItem value="upcoming">Следующие 7 дней</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {(selectedTournament !== 'all' || selectedDateRange !== 'all') && (
+                <Button variant="outline" size="sm" onClick={handleResetFilters}>
+                  <Icon name="X" size={16} className="mr-1" />
+                  Сбросить
+                </Button>
+              )}
+
+              <div className="ml-auto text-sm text-muted-foreground">
+                Найдено: {filteredMatches.length}
+              </div>
+            </div>
+
             <div className="grid gap-4">
-              {matches.map((match) => (
+              {filteredMatches.map((match) => (
                 <Card key={match.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="pt-6">
                     <div className="flex items-center justify-between">
@@ -221,7 +341,8 @@ const Index = () => {
                         >
                           {match.status === 'finished' ? 'Завершен' : 'Предстоит'}
                         </Badge>
-                        <div className="text-sm text-muted-foreground">{match.date}</div>
+                        <div className="text-sm text-muted-foreground mb-1">{match.date}</div>
+                        <div className="text-xs text-muted-foreground">{match.tournament}</div>
                       </div>
                     </div>
                   </CardContent>
